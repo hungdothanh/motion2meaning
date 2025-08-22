@@ -1,0 +1,17 @@
+# --------data.yaml--------
+
+Patient A:
+  gait_file: "dataset/SiCo01_01.txt"
+  age: 53
+  gender: "Female"
+  weight: "56 kg"
+  height: "1.53 m"
+
+
+Patient B:
+  gait_file: "dataset/GaPt09_01.txt"
+  age: 69
+  gender: "Male"
+  weight: "68 kg"
+  height: "1.60 m"
+
