@@ -44,18 +44,10 @@ class XAIComparativeAnalyzer:
         self.lrp_model = LRPModel(self.model)
         self.lrp_model.to(self.device).eval()
         
-        # Define unified colormap: blue (least significant) to red (most significant)
-        self.unified_colormap = LinearSegmentedColormap.from_list(
-            'unified', ['darkblue', 'blue', 'cyan', 'yellow', 'orange', 'red', 'darkred']
-        )
         
-        # Alternative simpler colormap
-        self.simple_colormap = LinearSegmentedColormap.from_list(
+        self.colormap = LinearSegmentedColormap.from_list(
             'simple', ['blue', 'cyan', 'yellow', 'red']
         )
-        
-        # Use the simple colormap as default
-        self.colormap = self.simple_colormap
         
     def extract_sensor_data(self, 
                            patient_name: str,
@@ -225,11 +217,11 @@ class XAIComparativeAnalyzer:
         # Get sensor name
         sensor_name = SENSOR_NAMES[sensor_idx] if sensor_idx < len(SENSOR_NAMES) else f"Sensor {sensor_idx}"
         
-        # Figure 1: Raw data with GradCAM overlay
+        # ---------------------------------- Figure 1: Raw data with GradCAM overlay ----------------------------------
         ax1 = axes[0]
         ax1.plot(time_points, sensor_data, 'k-', alpha=0.5, linewidth=1, label='Raw Data')
         
-        # Create GradCAM overlay using unified colormap
+        # Create GradCAM overlay
         for i in range(len(time_points) - 1):
             color_intensity = gradcam_relevance[i]
             color = self.colormap(color_intensity)
@@ -242,17 +234,17 @@ class XAIComparativeAnalyzer:
         ax1.grid(True, alpha=0.3)
         ax1.set_xlim(0, len(time_points)-1)
         
-        # Add GradCAM colorbar with unified colormap
+        # Add GradCAM colorbar
         sm1 = plt.cm.ScalarMappable(cmap=self.colormap, norm=plt.Normalize(0, 1))
         sm1.set_array([])
         cbar1 = plt.colorbar(sm1, ax=ax1, orientation='vertical', fraction=0.03, pad=0.02)
         cbar1.set_label('GradCAM Relevance', fontsize=9)
         
-        # Figure 2: Raw data with LRP overlay using the same unified colormap
+        # ---------------------------------- Figure 2: Raw data with LRP overlay ----------------------------------
         ax2 = axes[1]
         ax2.plot(time_points, sensor_data, 'k-', alpha=0.5, linewidth=1, label='Raw Data')
         
-        # Create LRP overlay using unified colormap
+        # Create LRP overlay
         for i in range(len(time_points) - 1):
             color_intensity = lrp_relevance[i]
             color = self.colormap(color_intensity)
@@ -265,13 +257,13 @@ class XAIComparativeAnalyzer:
         ax2.grid(True, alpha=0.3)
         ax2.set_xlim(0, len(time_points)-1)
         
-        # Add LRP colorbar with unified colormap
+        # Add LRP colorbar
         sm2 = plt.cm.ScalarMappable(cmap=self.colormap, norm=plt.Normalize(0, 1))
         sm2.set_array([])
         cbar2 = plt.colorbar(sm2, ax=ax2, orientation='vertical', fraction=0.03, pad=0.02)
         cbar2.set_label('LRP Relevance', fontsize=9)
         
-        # Figure 3: Normalized relevance scores comparison
+        # ---------------------------------- Figure 3: Normalized relevance scores comparison ----------------------------------
         ax3 = axes[2]
         ax3.plot(time_points, gradcam_relevance, 'b-', linewidth=2, alpha=0.8, label='GradCAM')
         ax3.plot(time_points, lrp_relevance, 'r-', linewidth=2, alpha=0.8, label='LRP')
@@ -282,7 +274,7 @@ class XAIComparativeAnalyzer:
         ax3.legend(loc='upper right')
         ax3.set_xlim(0, len(time_points)-1)
         
-        # Figure 4: Absolute difference with highlighted regions
+        # ---------------------------------- Figure 4: Absolute difference with highlighted regions ----------------------------------
         ax4 = axes[3]
         abs_diff = np.abs(gradcam_relevance - lrp_relevance)
         ax4.plot(time_points, abs_diff, 'purple', linewidth=2, label='|GradCAM - LRP|')
@@ -304,7 +296,7 @@ class XAIComparativeAnalyzer:
         ax4.legend(loc='upper right')
         ax4.set_xlim(0, len(time_points)-1)
         
-        # Figure 5: Original data with highlighted discrepancy regions
+        # ---------------------------------- Figure 5: Original data with highlighted discrepancy regions ----------------------------------
         ax5 = axes[4]
         ax5.plot(time_points, sensor_data, 'k-', linewidth=1.5, label='Raw Data')
         
@@ -337,32 +329,11 @@ class XAIComparativeAnalyzer:
         plt.tight_layout()
         
         if save_path:
-            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            plt.savefig(save_path, dpi=300) #, bbox_inches='tight')
             print(f"Figure saved to: {save_path}")
         
         return fig
     
-    def set_colormap_style(self, style: str = 'simple'):
-        """
-        Set the colormap style for visualizations.
-        
-        Args:
-            style: 'simple' for blue-to-red, 'detailed' for more color gradations
-        """
-        if style == 'simple':
-            self.colormap = LinearSegmentedColormap.from_list(
-                'simple', ['blue', 'cyan', 'yellow', 'red']
-            )
-        elif style == 'detailed':
-            self.colormap = LinearSegmentedColormap.from_list(
-                'detailed', ['darkblue', 'blue', 'cyan', 'yellow', 'orange', 'red', 'darkred']
-            )
-        elif style == 'viridis':
-            self.colormap = plt.cm.viridis
-        elif style == 'plasma':
-            self.colormap = plt.cm.plasma
-        else:
-            print(f"Unknown style '{style}'. Available styles: 'simple', 'detailed', 'viridis', 'plasma'")
     
     def analyze_multiple_sensors(self,
                                 patient_name: str,
@@ -422,66 +393,12 @@ class XAIComparativeAnalyzer:
         return results
 
 
-def main_analysis_example():
-    """
-    Example usage of the XAI comparative analyzer with unified colormap.
-    """
-    print("=" * 60)
-    print("XAI Comparative Analysis with Unified Colormap")
-    print("Blue (Low Relevance) → Red (High Relevance)")
-    print("=" * 60)
-    
-    # Initialize analyzer
-    analyzer = XAIComparativeAnalyzer()
-    
-    # You can change colormap style if needed
-    # analyzer.set_colormap_style('detailed')  # For more color gradations
-    # analyzer.set_colormap_style('viridis')   # For viridis colormap
-    
-    # Example 1: Analyze a single sensor with custom parameters
-    print("\n1. Single Sensor Analysis")
-    print("-" * 30)
-    
-    # Analyze Patient A, Left VGRF-1 sensor (index 0)
-    fig1 = analyzer.plot_comparative_analysis(
-        patient_name='Patient A',
-        sensor_idx=0,  # First left sensor
-        start_time=100,  # Start at time point 100
-        sequence_length=500,  # Analyze 500 time points (5 seconds at 100Hz)
-        save_path='patient_a_left_vgrf1_unified_comparison.png'
-    )
-    plt.show()
-    
-    # Example 2: Analyze Patient B, Right VGRF-1 sensor (index 8)
-    print("\n2. Analyzing Patient B - Right VGRF-1")
-    fig2 = analyzer.plot_comparative_analysis(
-        patient_name='Patient B',
-        sensor_idx=8,  # First right sensor
-        start_time=0,
-        sequence_length=1000,  # Full 10-second window
-        save_path='patient_b_right_vgrf1_unified_comparison.png'
-    )
-    plt.show()
-    
-    print("\n" + "=" * 60)
-    print("Analysis Complete with Unified Colormap!")
-    print("Both GradCAM and LRP now use the same blue-to-red colormap")
-    print("=" * 60)
-
 
 if __name__ == "__main__":
-    # Run the main analysis
-    # main_analysis_example()
-    
-    # Choose patient and sensor
+
+
     analyzer = XAIComparativeAnalyzer()
-    
-    # # Optional: Set colormap style
-    # print("Available colormap styles: 'simple' (default), 'detailed', 'viridis', 'plasma'")
-    # style = input("Enter colormap style (press Enter for default): ").strip()
-    # if style:
-    #     analyzer.set_colormap_style(style)
-    
+
     # Get user input
     patient = input("Enter patient name (Patient A/Patient B): ")
     sensor_idx = int(input(f"Enter sensor index (0-15): "))
