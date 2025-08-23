@@ -1,4 +1,4 @@
-
+# -------------------discrepancy.py-------------------
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -335,83 +335,6 @@ class XAIComparativeAnalyzer:
         return fig
     
     
-    def analyze_multiple_sensors(self,
-                                patient_name: str,
-                                sensor_indices: List[int],
-                                start_time: int = 0,
-                                sequence_length: int = 1000,
-                                save_dir: Optional[str] = None) -> Dict:
-        """
-        Analyze multiple sensors and generate comparative visualizations.
-        
-        Args:
-            patient_name: Name of the patient
-            sensor_indices: List of sensor indices to analyze
-            start_time: Starting time point
-            sequence_length: Length of the sequence
-            save_dir: Directory to save figures
-            
-        Returns:
-            Dictionary with analysis results for each sensor
-        """
-        import os
-        
-        if save_dir:
-            os.makedirs(save_dir, exist_ok=True)
-        
-        results = {}
-        
-        for sensor_idx in sensor_indices:
-            sensor_name = SENSOR_NAMES[sensor_idx] if sensor_idx < len(SENSOR_NAMES) else f"Sensor {sensor_idx}"
-            print(f"\nAnalyzing {sensor_name} (Index: {sensor_idx})...")
-            
-            # Generate save path
-            save_path = None
-            if save_dir:
-                safe_sensor_name = sensor_name.replace(' ', '_').replace('-', '_')
-                save_path = os.path.join(save_dir, 
-                    f"{patient_name.replace(' ', '_')}_{safe_sensor_name}_comparison.png")
-            
-            # Create visualization
-            fig = self.plot_comparative_analysis(
-                patient_name=patient_name,
-                sensor_idx=sensor_idx,
-                start_time=start_time,
-                sequence_length=sequence_length,
-                save_path=save_path
-            )
-            
-            # Store results
-            results[sensor_name] = {
-                'sensor_idx': sensor_idx,
-                'figure': fig,
-                'save_path': save_path
-            }
-            
-            plt.close(fig)  # Close to free memory
-        
-        return results
 
 
 
-if __name__ == "__main__":
-
-
-    analyzer = XAIComparativeAnalyzer()
-
-    # Get user input
-    patient = input("Enter patient name (Patient A/Patient B): ")
-    sensor_idx = int(input(f"Enter sensor index (0-15): "))
-    start_time = int(input("Enter start time (default 0): ") or "0")
-    # seq_length = int(input("Enter sequence length (default 1000): ") or "1000")
-    seq_length = 1000
-    
-    # Generate analysis
-    fig = analyzer.plot_comparative_analysis(
-        patient_name=patient,
-        sensor_idx=sensor_idx,
-        start_time=start_time,
-        sequence_length=seq_length,
-        save_path=f"{patient}_{sensor_idx}_unified_analysis.png"
-    )
-    plt.show()

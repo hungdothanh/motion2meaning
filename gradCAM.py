@@ -1,12 +1,9 @@
-
-import numpy as np
-import matplotlib.pyplot as plt
+# -------------------gradCAM.py-------------------
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Optional, Tuple, Dict, Union
 import cv2
-from matplotlib.colors import LinearSegmentedColormap
 
 class GradCAM1D:
     """

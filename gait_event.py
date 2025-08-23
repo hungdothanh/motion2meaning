@@ -1,3 +1,4 @@
+# -------------------gait_event.py-------------------
 import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
@@ -147,40 +148,7 @@ class GaitMetricsCalculator:
                 swing_times.append(swing_time)
         
         return np.array(swing_times)
-    
-    def calculate_double_support_time(self):
-        """
-        Calculate double support time: time when both feet are on ground.
-        Formula: Double Support Time = t(TO_opposite_foot) - t(HS_initial_foot)
-        """
-        left_hs = self.heel_strikes['left']
-        right_hs = self.heel_strikes['right']
-        left_to = self.toe_offs['left']
-        right_to = self.toe_offs['right']
-        
-        double_support_times = []
-        
-        # Double support phase 1: Right heel strike to left toe-off
-        for rhs_time in right_hs:
-            # Find next left toe-off after right heel strike
-            next_left_to = left_to[left_to > rhs_time]
-            if len(next_left_to) > 0:
-                lto_time = next_left_to[0]
-                ds_time = lto_time - rhs_time
-                if ds_time > 0:  # Valid double support phase
-                    double_support_times.append(ds_time)
-        
-        # Double support phase 2: Left heel strike to right toe-off
-        for lhs_time in left_hs:
-            # Find next right toe-off after left heel strike
-            next_right_to = right_to[right_to > lhs_time]
-            if len(next_right_to) > 0:
-                rto_time = next_right_to[0]
-                ds_time = rto_time - lhs_time
-                if ds_time > 0:  # Valid double support phase
-                    double_support_times.append(ds_time)
-        
-        return np.array(double_support_times)
+
     
     def analyze_gait(self, force_threshold=50):
         """
@@ -203,8 +171,7 @@ class GaitMetricsCalculator:
             'left_stance_times': self.calculate_stance_time('left'),
             'right_stance_times': self.calculate_stance_time('right'),
             'left_swing_times': self.calculate_swing_time('left'),
-            'right_swing_times': self.calculate_swing_time('right'),
-            'double_support_times': self.calculate_double_support_time()
+            'right_swing_times': self.calculate_swing_time('right')
         }
         
         return results
@@ -221,8 +188,7 @@ class GaitMetricsCalculator:
             ('Left Stance Time', results['left_stance_times']),
             ('Right Stance Time', results['right_stance_times']),
             ('Left Swing Time', results['left_swing_times']),
-            ('Right Swing Time', results['right_swing_times']),
-            ('Double Support Time', results['double_support_times'])
+            ('Right Swing Time', results['right_swing_times'])
         ]
         
         for name, values in metrics:
@@ -234,68 +200,6 @@ class GaitMetricsCalculator:
             else:
                 print(f"\n{name}: No valid cycles detected")
     
-    def plot_force_and_events(self, duration=10):
-        """
-        Plot force data with detected heel strikes and toe-offs.
-        Shows first 'duration' seconds of data.
-        """
-        # Limit to first 'duration' seconds
-        mask = self.data['time'] <= duration
-        time_subset = self.data['time'][mask]
-        left_force = self.data['total_left'][mask]
-        right_force = self.data['total_right'][mask]
-        
-        plt.figure(figsize=(14, 8))
-        
-        # Plot force data
-        plt.plot(time_subset, left_force, 'b-', label='Left Foot Total Force', linewidth=1.5, alpha=0.8)
-        plt.plot(time_subset, right_force, 'r-', label='Right Foot Total Force', linewidth=1.5, alpha=0.8)
-        
-        # Plot heel strikes and toe-offs within the time window at the actual force values
-        for foot, color in [('left', 'blue'), ('right', 'red')]:
-            hs_in_window = self.heel_strikes[foot][self.heel_strikes[foot] <= duration]
-            to_in_window = self.toe_offs[foot][self.toe_offs[foot] <= duration]
-            
-            # For heel strikes, plot at the force value at that time
-            if len(hs_in_window) > 0:
-                hs_forces = []
-                for hs_time in hs_in_window:
-                    # Find closest time point
-                    closest_idx = np.argmin(np.abs(time_subset - hs_time))
-                    if foot == 'left':
-                        hs_forces.append(left_force.iloc[closest_idx])
-                    else:
-                        hs_forces.append(right_force.iloc[closest_idx])
-                
-                plt.scatter(hs_in_window, hs_forces, 
-                           c=color, marker='o', s=120, edgecolor='white', linewidth=2,
-                           label=f'{foot.capitalize()} Heel Strike', zorder=5)
-            
-            # For toe-offs, plot at the force value at that time
-            if len(to_in_window) > 0:
-                to_forces = []
-                for to_time in to_in_window:
-                    # Find closest time point
-                    closest_idx = np.argmin(np.abs(time_subset - to_time))
-                    if foot == 'left':
-                        to_forces.append(left_force.iloc[closest_idx])
-                    else:
-                        to_forces.append(right_force.iloc[closest_idx])
-                
-                plt.scatter(to_in_window, to_forces, 
-                           c=color, marker='^', s=120, edgecolor='white', linewidth=2,
-                           label=f'{foot.capitalize()} Toe-Off', zorder=5)
-        
-        # Add horizontal line at threshold
-        plt.axhline(y=50, color='gray', linestyle='--', alpha=0.5, label='Force Threshold (50N)')
-        
-        plt.xlabel('Time (seconds)', fontsize=12)
-        plt.ylabel('Force (Newtons)', fontsize=12)
-        plt.title(f'Ground Reaction Forces with Gait Events (First {duration} seconds)', fontsize=14)
-        plt.legend(fontsize=10)
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        plt.show()
 
 
 # Example usage
@@ -308,9 +212,7 @@ def main():
     
     # Print summary
     calculator.print_summary(results)
-    
-    # Plot results (optional)
-    calculator.plot_force_and_events(duration=10)
+
     
     return results
 
