@@ -14,6 +14,7 @@ from model import ParkinsonsGaitCNN
 from discrepancy import XAIComparativeAnalyzer
 from gait_event import GaitMetricsCalculator
 from chatbox import ParkinsonsGaitChatbot
+from apikey import MY_OPENAI_API_KEY
 
 
 class ParkinsonsGaitApp:
@@ -385,8 +386,6 @@ class ParkinsonsGaitApp:
         )
 
 
-
-
 #-----------------------------------------------------------
 # ------------------- Gradio Interface ----------------------
 #-----------------------------------------------------------
@@ -544,18 +543,13 @@ def create_gradio_interface(openai_api_key: str):
 
 def main():    
     # OpenAI API Key - Replace with your actual key
-    OPENAI_API_KEY = "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"
-    
-    if OPENAI_API_KEY == "your-openai-api-key-here":
-        print("⚠️  Please set your OpenAI API key in the OPENAI_API_KEY variable")
-        print("You can get your API key from: https://platform.openai.com/api-keys")
-        return
+    OPENAI_API_KEY = MY_OPENAI_API_KEY
     
     # Create and launch the Gradio interface
     demo = create_gradio_interface(OPENAI_API_KEY)
     demo.queue().launch(
         debug=True,
-        share=True, 
+        # share=True, 
         server_port=7860,
         show_error=True
     )
