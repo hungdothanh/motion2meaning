@@ -3,11 +3,9 @@
 import gradio as gr
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn.functional as F
-import openai
-from typing import List
+import io, base64
 
 # Import your existing modules
 from config import PRETRAINED_MODEL_PATH, SEGMENT_LENGTH, CLASS_NAMES, SENSOR_NAMES
@@ -15,75 +13,8 @@ from data import load_data, preprocess_file
 from model import ParkinsonsGaitCNN
 from discrepancy import XAIComparativeAnalyzer
 from gait_event import GaitMetricsCalculator
+from chatbox import ParkinsonsGaitChatbot
 
-class ParkinsonsGaitChatbot:
-    """Chatbot for Parkinson's Gait Analysis using OpenAI GPT-4"""
-    
-    PROMPT_TEMPLATE = """You are a helpful clinical decision support AI for Parkinson's disease diagnosis using gait analysis. Always:
-    1. Think step-by-step before responding
-    2. Justify your initial assessment and interpretation of gait metrics, referencing clinical guidelines or evidence when possible
-    3. When finalization request is queried, you must finalize the decision (answer: "Healthy", "Stage 2", "Stage 2.5", or "Stage 3") but you may overturn your prior assessment if, after reviewing all evidence, you are confident a different answer is correct. Clearly state the reason for any change.
-    4. Provide accurate, current information using clinical gait analysis guidelines
-    5. Avoid assumptions. Only use the provided gait data and metrics
-    6. Cross-validate findings with multiple gait parameters (stride time, stance time, swing time, force patterns)
-    7. Flag urgent concerns about mobility or fall risk immediately
-    8. Reference sources for non-standard conclusions about Parkinson's gait patterns
-    9. Maintain clarity with concise and straightforward responses
-    10. Consider both XAI explanation discrepancies and traditional gait metrics in your analysis
-    11. Be aware that high discrepancy regions between GradCAM and LRP may indicate areas of diagnostic uncertainty"""
-
-    def __init__(self, api_key: str, temperature: float = 0.2, max_tokens: int = 4096):
-        """Initialize the chatbot with OpenAI API key"""
-        openai.api_key = api_key
-        self.temperature = temperature
-        self.max_tokens = max_tokens
-
-    def generate_response(self, history: List, new_message: str):
-        """Generate response using OpenAI GPT-4"""
-        # Convert history to proper format if needed
-        chat_history = []
-        if history:
-            for msg in history:
-                if isinstance(msg, (list, tuple)) and len(msg) == 2:
-                    # Format: [user_msg, assistant_msg]
-                    if msg[0]:  # user message
-                        chat_history.append({"role": "user", "content": msg[0]})
-                    if msg[1]:  # assistant message
-                        chat_history.append({"role": "assistant", "content": msg[1]})
-        
-        # Build messages for API call
-        messages = [{"role": "system", "content": self.PROMPT_TEMPLATE}]
-        messages.extend(chat_history)
-        messages.append({"role": "user", "content": new_message})
-        
-        try:
-            from openai import OpenAI
-            client = OpenAI(api_key=openai.api_key)
-            
-            response = client.chat.completions.create(
-                model="gpt-4",
-                messages=messages,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                stream=True
-            )
-            
-            # Initialize response
-            assistant_response = ""
-            
-            # Stream the response
-            for chunk in response:
-                if chunk.choices[0].delta.content is not None:
-                    assistant_response += chunk.choices[0].delta.content
-                    
-                    # Update history in Gradio format [user_msg, assistant_msg]
-                    updated_history = history + [[new_message, assistant_response]]
-                    yield updated_history
-                        
-        except Exception as e:
-            error_response = f"Error generating response: {str(e)}"
-            updated_history = history + [[new_message, error_response]]
-            yield updated_history
 
 class ParkinsonsGaitApp:
     """Main application class for Parkinson's Gait Analysis"""
@@ -247,6 +178,14 @@ class ParkinsonsGaitApp:
         except Exception as e:
             return f"Error computing gait metrics: {str(e)}"
 
+    def _fig_to_data_uri(self, fig) -> str:
+        """Convert a Matplotlib Figure to a PNG data URI."""
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches="tight", dpi=150)
+        buf.seek(0)
+        b64 = base64.b64encode(buf.read()).decode("ascii")
+        return f"data:image/png;base64,{b64}"
+    
     def generate_xai_analysis(self, patient_name: str, sensor_idx: int = 0):
         """Generate XAI analysis plots and update chat history"""
         if not patient_name:
@@ -261,7 +200,6 @@ class ParkinsonsGaitApp:
                 sequence_length=1000
             )
             
-            # Extract the 3 key subplots we want to display separately
             # Plot 1: Raw data with GradCAM overlay
             fig1, ax1 = plt.subplots(figsize=(15, 6))
             # Get data for recreating plots
@@ -346,20 +284,50 @@ class ParkinsonsGaitApp:
                 prediction_info = self.current_results['prediction']
                 analysis_summary = f"""Analysis Summary for {patient_name}:
 
-Model Prediction: {prediction_info['class']} (Confidence: {prediction_info['confidence']:.3f})
+                                    Model Prediction: {prediction_info['class']} (Confidence: {prediction_info['confidence']:.3f})
 
-XAI Analysis:
-- Sensor analyzed: {SENSOR_NAMES[sensor_idx]}
-- High discrepancy regions: {self.current_results['xai_analysis']['high_discrepancy_regions']} time points
-- Discrepancy percentage: {self.current_results['xai_analysis']['discrepancy_percentage']:.1f}%
+                                    XAI Analysis:
+                                    - Sensor analyzed: {SENSOR_NAMES[sensor_idx]}
+                                    - High discrepancy regions: {self.current_results['xai_analysis']['high_discrepancy_regions']} time points
+                                    - Discrepancy percentage: {self.current_results['xai_analysis']['discrepancy_percentage']:.1f}%
 
-The red-highlighted regions show where GradCAM and LRP explanations significantly disagree, indicating areas of model uncertainty."""
+                                    The red-highlighted regions show where GradCAM and LRP explanations significantly disagree, indicating areas of model uncertainty."""
 
                 chat_history.append([None, analysis_summary])
             else:
                 chat_history.append([None, "XAI Analysis completed. I can now help you interpret the results."])
             
-            return fig1, fig2, fig3, chat_history
+
+            if 'prediction' in self.current_results:
+                prediction_info = self.current_results['prediction']
+                sensor_name = SENSOR_NAMES[sensor_idx]
+                xai = self.current_results['xai_analysis']
+                text_context = (
+                    f"Model Prediction: {prediction_info['class']} "
+                    f"(Confidence: {prediction_info['confidence']:.3f})\n\n"
+                    f"XAI Analysis:\n"
+                    f"- Sensor analyzed: {sensor_name}\n"
+                    f"- High discrepancy regions: {xai['high_discrepancy_regions']} time points\n"
+                    f"- Discrepancy percentage: {xai['discrepancy_percentage']:.1f}%\n\n"
+                    "The red-highlighted regions show where GradCAM and LRP explanations "
+                    "significantly disagree, indicating areas of model uncertainty."
+                )
+            else:
+                text_context = (
+                    "XAI Analysis context not available yet. Please run a prediction first."
+                )
+
+            # Convert the 3 plots (we just created) to data URIs
+            img1_uri = self._fig_to_data_uri(fig1)
+            img2_uri = self._fig_to_data_uri(fig2)
+            img3_uri = self._fig_to_data_uri(fig3)
+
+            context_package = {
+                "text": text_context,
+                "images": [img1_uri, img2_uri, img3_uri]
+            }
+
+            return fig1, fig2, fig3, chat_history, context_package
             
         except Exception as e:
             # Return empty figures and error message
@@ -368,8 +336,55 @@ The red-highlighted regions show where GradCAM and LRP explanations significantl
                    ha='center', va='center', transform=ax.transAxes)
             
             error_history = [[None, f"Error generating XAI analysis: {str(e)}"]]
+            empty_context = {"text": "XAI context unavailable due to an error.", "images": []}
             
-            return fig, fig, fig, error_history
+            return fig, fig, fig, error_history, empty_context
+
+    def _format_gait_metrics_summary(self) -> str:
+        """Create a compact, readable gait metrics summary from self.current_results."""
+        res = self.current_results.get('gait_metrics')
+        if not res:
+            return "Gait metrics not computed yet."
+
+        def fmt_stats(arr, name):
+            if len(arr) == 0:
+                return f"{name}: n=0"
+            return f"{name}: {float(np.mean(arr)):.3f} ± {float(np.std(arr)):.3f} sec (n={len(arr)})"
+
+        lines = []
+        left = [
+            fmt_stats(res.get('left_stride_times', []), "Stride Time"),
+            fmt_stats(res.get('left_stance_times', []), "Stance Time"),
+            fmt_stats(res.get('left_swing_times', []),  "Swing Time"),
+        ]
+        right = [
+            fmt_stats(res.get('right_stride_times', []), "Stride Time"),
+            fmt_stats(res.get('right_stance_times', []), "Stance Time"),
+            fmt_stats(res.get('right_swing_times', []),  "Swing Time"),
+        ]
+        lines.append("LEFT FOOT")
+        lines.extend([f"  • {s}" for s in left])
+        lines.append("RIGHT FOOT")
+        lines.extend([f"  • {s}" for s in right])
+        return "\n".join(lines)
+
+    def _format_xai_summary(self, patient_name: str) -> str:
+        """Summarize XAI analysis and discrepancy."""
+        xai = self.current_results.get('xai_analysis')
+        if not xai:
+            return "XAI analysis not generated yet."
+        sensor_idx = xai.get('sensor_idx', 0)
+        disc_pct = xai.get('discrepancy_percentage', 0.0)
+        high_pts = xai.get('high_discrepancy_regions', 0)
+        sensor_label = SENSOR_NAMES[sensor_idx] if sensor_idx < len(SENSOR_NAMES) else f"Sensor {sensor_idx}"
+        return (
+            f"Sensor analyzed: {sensor_label}\n"
+            f"High discrepancy time points (GradCAM vs LRP): {high_pts}\n"
+            f"Discrepancy percentage: {disc_pct:.1f}%\n"
+            f"Note: Red-highlighted regions in the plot indicate diagnostic uncertainty."
+        )
+
+
 
 
 #-----------------------------------------------------------
@@ -380,14 +395,15 @@ def create_gradio_interface(openai_api_key: str):
     
     # Initialize the app
     app = ParkinsonsGaitApp(openai_api_key)
-    
+
     # Create Gradio interface
-    with gr.Blocks(theme=gr.themes.Base(), title="Parkinson's Gait Analysis") as demo:
+    with gr.Blocks(theme=gr.themes.Default(), title="Parkinson's Gait Analysis") as demo:
         
         gr.HTML(
             "<h1 class='title'><center>Parkinson's Disease Gait Analysis System</center></h1>"
         )
         
+        chat_context = gr.State({"text": "", "images": []})
         # Patient Selection and Raw Data Visualization
         with gr.Group():
             gr.HTML("<h2>📊 Patient Data Selection</h2>")
@@ -460,20 +476,18 @@ def create_gradio_interface(openai_api_key: str):
         
         # Chatbot Interface
         with gr.Group():
-            gr.HTML("<h2>AI Clinical Assistant</h2>")
+            gr.HTML("<h2>🤖 AI Clinical Assistant</h2>")
             with gr.Row():
                 chat_interface = gr.Chatbot(
                     value=[[None, "Hello! I'm your AI clinical assistant for Parkinson's gait analysis. I can help you interpret model predictions, gait metrics, XAI explanations, and provide clinical insights. Please select a patient and run the analysis to get started."]],
                     show_copy_button=True,
                     show_share_button=True,
                     height=600,
-                    avatar_images=[None, "🤖"],
                 )
             with gr.Row():
                 msg = gr.Textbox(
                     placeholder="Ask about the analysis results, gait patterns, or clinical insights...",
                     show_label=False,
-                    submit_btn=True,
                     scale=9
                 )
                 clear_chat = gr.Button("🗑️ Clear Chat", scale=1)
@@ -494,13 +508,13 @@ def create_gradio_interface(openai_api_key: str):
         xai_button.click(
             fn=app.generate_xai_analysis,
             inputs=[patient_selector, sensor_selector],
-            outputs=[gradcam_plot, lrp_plot, discrepancy_plot, chat_interface]
+            outputs=[gradcam_plot, lrp_plot, discrepancy_plot, chat_interface, chat_context]
         )
         
         # Chat functionality
         msg.submit(
             fn=app.chatbot.generate_response,
-            inputs=[chat_interface, msg],
+            inputs=[chat_interface, msg, chat_context],
             outputs=chat_interface,
             show_progress="hidden"
         ).then(
@@ -514,7 +528,7 @@ def create_gradio_interface(openai_api_key: str):
             outputs=chat_interface
         )
         
-        # Initialize with first patient
+        # Initialize 
         demo.load(
             fn=app.update_segment_slider,
             inputs=patient_selector,
@@ -524,14 +538,13 @@ def create_gradio_interface(openai_api_key: str):
             inputs=[patient_selector, sensor_selector, segment_selector],
             outputs=raw_data_plot
         )
+
     
     return demo
 
-def main():
-    """Main function to launch the application"""
-    
+def main():    
     # OpenAI API Key - Replace with your actual key
-    OPENAI_API_KEY = "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"  # Replace this with your actual OpenAI API key
+    OPENAI_API_KEY = "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"
     
     if OPENAI_API_KEY == "your-openai-api-key-here":
         print("⚠️  Please set your OpenAI API key in the OPENAI_API_KEY variable")

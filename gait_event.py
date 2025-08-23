@@ -202,19 +202,19 @@ class GaitMetricsCalculator:
     
 
 
-# Example usage
-def main():
-    # Initialize calculator with your data file
-    calculator = GaitMetricsCalculator('dataset\SiCo01_01.txt')
+# # Example usage
+# def main():
+#     # Initialize calculator with your data file
+#     calculator = GaitMetricsCalculator('dataset\SiCo01_01.txt')
     
-    # Run complete analysis
-    results = calculator.analyze_gait(force_threshold=20)
+#     # Run complete analysis
+#     results = calculator.analyze_gait(force_threshold=20)
     
-    # Print summary
-    calculator.print_summary(results)
+#     # Print summary
+#     calculator.print_summary(results)
 
     
-    return results
+#     return results
 
-# Uncomment to run:
-results = main()
+# # Uncomment to run:
+# results = main()
