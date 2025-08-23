@@ -341,51 +341,6 @@ class ParkinsonsGaitApp:
             
             return fig, fig, fig, error_history, empty_context
 
-    def _format_gait_metrics_summary(self) -> str:
-        """Create a compact, readable gait metrics summary from self.current_results."""
-        res = self.current_results.get('gait_metrics')
-        if not res:
-            return "Gait metrics not computed yet."
-
-        def fmt_stats(arr, name):
-            if len(arr) == 0:
-                return f"{name}: n=0"
-            return f"{name}: {float(np.mean(arr)):.3f} ± {float(np.std(arr)):.3f} sec (n={len(arr)})"
-
-        lines = []
-        left = [
-            fmt_stats(res.get('left_stride_times', []), "Stride Time"),
-            fmt_stats(res.get('left_stance_times', []), "Stance Time"),
-            fmt_stats(res.get('left_swing_times', []),  "Swing Time"),
-        ]
-        right = [
-            fmt_stats(res.get('right_stride_times', []), "Stride Time"),
-            fmt_stats(res.get('right_stance_times', []), "Stance Time"),
-            fmt_stats(res.get('right_swing_times', []),  "Swing Time"),
-        ]
-        lines.append("LEFT FOOT")
-        lines.extend([f"  • {s}" for s in left])
-        lines.append("RIGHT FOOT")
-        lines.extend([f"  • {s}" for s in right])
-        return "\n".join(lines)
-
-    def _format_xai_summary(self, patient_name: str) -> str:
-        """Summarize XAI analysis and discrepancy."""
-        xai = self.current_results.get('xai_analysis')
-        if not xai:
-            return "XAI analysis not generated yet."
-        sensor_idx = xai.get('sensor_idx', 0)
-        disc_pct = xai.get('discrepancy_percentage', 0.0)
-        high_pts = xai.get('high_discrepancy_regions', 0)
-        sensor_label = SENSOR_NAMES[sensor_idx] if sensor_idx < len(SENSOR_NAMES) else f"Sensor {sensor_idx}"
-        return (
-            f"Sensor analyzed: {sensor_label}\n"
-            f"High discrepancy time points (GradCAM vs LRP): {high_pts}\n"
-            f"Discrepancy percentage: {disc_pct:.1f}%\n"
-            f"Note: Red-highlighted regions in the plot indicate diagnostic uncertainty."
-        )
-
-
 #-----------------------------------------------------------
 # ------------------- Gradio Interface ----------------------
 #-----------------------------------------------------------
