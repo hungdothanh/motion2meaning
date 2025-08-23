@@ -161,8 +161,8 @@ class GaitMetricsCalculator:
         self.detect_heel_strikes_toe_offs('left', force_threshold)
         self.detect_heel_strikes_toe_offs('right', force_threshold)
         
-        print(f"Left foot - Heel strikes: {len(self.heel_strikes['left'])}, Toe-offs: {len(self.toe_offs['left'])}")
-        print(f"Right foot - Heel strikes: {len(self.heel_strikes['right'])}, Toe-offs: {len(self.toe_offs['right'])}")
+        # print(f"Left foot - Heel strikes: {len(self.heel_strikes['left'])}, Toe-offs: {len(self.toe_offs['left'])}")
+        # print(f"Right foot - Heel strikes: {len(self.heel_strikes['right'])}, Toe-offs: {len(self.toe_offs['right'])}")
         
         # Calculate metrics
         results = {
