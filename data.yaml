@@ -1,17 +1,59 @@
 # --------data.yaml--------
 
+
+
+# Stage 3
 Patient A:
-  gait_file: "dataset/SiCo01_01.txt"
-  age: 53
-  gender: "Female"
-  weight: "56 kg"
-  height: "1.53 m"
-
-
-Patient B:
   gait_file: "dataset/GaPt09_01.txt"
   age: 69
   gender: "Male"
   weight: "68 kg"
   height: "1.60 m"
 
+# Stage 3
+Patient B:
+  gait_file: "dataset/JuPt10_01.txt"
+
+# Stage 2.5
+Patient C:
+  gait_file: "dataset/GaPt28_01.txt"
+
+# Stage 2.5
+Patient D:
+  gait_file: "dataset/JuPt02_01.txt"
+
+# Stage 2
+Patient E:
+  gait_file: "dataset/SiPt08_01.txt"
+
+# Stage 2
+Patient F:
+  gait_file: "dataset/SiPt12_01.txt"
+
+# Stage 0
+Patient G:
+  gait_file: "dataset/SiCo01_01.txt"
+  age: 53
+  gender: "Female"
+  weight: "56 kg"
+  height: "1.53 m"
+
+# Stage 0
+Patient H:
+  gait_file: "dataset/SiCo06_01.txt"
+
+# Stage 0
+Patient I:
+  gait_file: "dataset/JuCo06_01.txt"
+
+# Stage 0
+Patient J:
+  gait_file: "dataset/SiCo15_01.txt"
+
+# Stage 0
+Patient K:
+  gait_file: "dataset/GaCo01_01.txt"
+
+# Stage 0
+Patient L:
+  gait_file: "dataset/GaCo07_01.txt"
