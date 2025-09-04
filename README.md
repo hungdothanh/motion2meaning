@@ -24,11 +24,15 @@ It integrates **wearable sensor analysis, explainable AI (XAI), and contestable 
 ## Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/<your-username>/motion2meaning.git
+   git clone https://github.com/hungdothanh/motion2meaning.git
    cd motion2meaning
    ```
 2. Install dependencies:
-```pip install -r requirements.txt```
+   ```
+   pip install -r requirements.txt
+   ```
 
-3. Run the web-based dashboard:
-   ```python app.py```
+4. Run the web-based dashboard:
+   ```
+   python app.py
+   ```
