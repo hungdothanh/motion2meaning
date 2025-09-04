@@ -1,7 +1,36 @@
-Overall framework:
+# Motion2Meaning: Contestable AI for Parkinsonian Gait Interpretation
 
-- raw gait data (16 features -> 16 sensor channels across the time domain)
-- 1DCNN model -> predict the severity score of the patient ("Healthy","Stage 2","Stage 2.5","Stage 3")
-- XAI methods: LRP and GradCAM for time series signal -> compute the relevance score of each data point of each sensor
-- Discrepancy: absolute difference
-- Chatbox: template prompt (for system 'role'), Patient data e.g. prediction, gait metrics, XAI plots (for user 'role')
+Motion2Meaning is a **clinician-centered framework** for contestable interpretation of Parkinson’s Disease (PD) gait data.  
+It integrates **wearable sensor analysis, explainable AI (XAI), and contestable system design** into a single workflow that prioritizes transparency, accountability, and human oversight.
+
+---
+
+## Key Features
+- **Gait Data Visualization Interface (GDVI)**  
+  Interactive web-based tool to explore raw vertical Ground Reaction Force (vGRF) signals with stride, stance, and swing markers.
+
+- **1D-CNN Diagnostic Pipeline**  
+  End-to-end prediction of **Hoehn & Yahr severity scores** from raw gait signals.
+
+- **Cross-Modal Explanation Discrepancy (XMED)**  
+  Compares Grad-CAM and LRP explanations to detect inconsistent or unreliable model predictions.
+
+- **Contestable Interpretation Interface (CII)**  
+  A dashboard for clinicians to review, challenge, and override AI outputs.  
+  - Structured **“Contest & Justify” workflow**  
+  - LLM-powered justifications grounded in clinical evidence  
+  - Immutable logging of disagreements and resolutions  
+
+---
+
+## ⚙️ Installation
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/<your-username>/motion2meaning.git
+   cd motion2meaning
+   ```
+2. Install dependencies:
+```pip install -r requirements.txt```
+
+3. Run the web-based dashboard:
+   ```python app.py```
