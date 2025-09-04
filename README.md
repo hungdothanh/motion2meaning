@@ -1,9 +1,9 @@
 # Motion2Meaning: Contestable AI for Parkinsonian Gait Interpretation
 
+## Overview
 Motion2Meaning is a **clinician-centered framework** for contestable interpretation of Parkinson’s Disease (PD) gait data.  
 It integrates **wearable sensor analysis, explainable AI (XAI), and contestable system design** into a single workflow that prioritizes transparency, accountability, and human oversight.
 
----
 
 ## Key Features
 - **Gait Data Visualization Interface (GDVI)**  
@@ -21,9 +21,7 @@ It integrates **wearable sensor analysis, explainable AI (XAI), and contestable 
   - LLM-powered justifications grounded in clinical evidence  
   - Immutable logging of disagreements and resolutions  
 
----
-
-## ⚙️ Installation
+## Installation
 1. Clone the repository:
    ```bash
    git clone https://github.com/<your-username>/motion2meaning.git
