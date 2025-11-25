@@ -3,17 +3,25 @@ from openai import OpenAI
 from typing import List, Optional, Dict, Any
 import time, math
 
+try:
+    import transformers as _hf_transformers
+    import torch as _hf_torch
+except Exception:
+    _hf_transformers = None
+    _hf_torch = None
+
 class ParkinsonsGaitChatbot:
 
     PROMPT_TEMPLATE = """You are a helpful clinical decision support AI for Parkinson's disease diagnosis using gait analysis. Always:
     1. Think step-by-step before responding
     2. Justify your initial assessment and interpretation of gait events (Stride, Swing and Stance time and their cycles), referencing clinical guidelines or evidence when possible
-    3. When finalization request is queried, you must finalize the decision (only answer: "Healthy", "Stage 2", "Stage 2.5", or "Stage 3") but you may overturn your prior assessment if, after reviewing all evidence, you are confident a different answer is correct. Clearly state the reason for any change.
-    4. Provide information that is correct, intuitive, compact, and simple for end-users to understand
-    5. Avoid assumptions. Only use the provided data and context
+    3. When finalization request is queried, you must finalize the decision (only answer: "Healthy", "Stage 2", "Stage 2.5", or "Stage 3") but you may overturn your prior assessment if, after reviewing all evidence, you are confident a different answer is correct. 
+    4. Using your clinical analysis and justification, identify the potential reasons for any change in the final decision (e.g., specific gait abnormalities, asymmetries, variability, etc.) or in case of no change, justify why the initial assessment was correct. Then explain how these factors contribute to the final severity.
+    5. Provide information that is correct, intuitive, compact, and simple for end-users to understand
     6. Cross-validate findings with multiple source
     7. Reference sources for non-standard conclusions
     8. Maintain clarity with concise and straightforward responses"""
+
 
     def __init__(self, temperature: float = 0.2, max_tokens: int = 4096,
                  default_model: str = "meta-llama/Llama-4-Scout-17B-16E-Instruct:fireworks-ai"):
@@ -27,12 +35,12 @@ class ParkinsonsGaitChatbot:
         Use OpenAI official endpoint for 'gpt-*' models,
         and the HF Router for the Fireworks-hosted Llama model.
         """
-        if model_name == "gpt-4o":
-            # OpenAI hosted models
-            return OpenAI(api_key="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")  # default base_url=https://api.openai.com/v1
+        if model_name == "gpt-4o" or model_name == "gpt-5":
+            # OpenAI hosted models (default: base_url=https://api.openai.com/v1)
+            return OpenAI(api_key="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")  
         else:
             # HF Router for 3rd-party hosted models like Fireworks
-            return OpenAI(base_url="https://router.huggingface.co/v1", api_key="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")
+            return OpenAI(base_url="https://router.huggingface.co/v1", api_key="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")
 
 
     @staticmethod
@@ -51,17 +59,12 @@ class ParkinsonsGaitChatbot:
 
 
     def generate_response(self, history: List, new_message: str,
-                          context: Optional[Dict[str, Any]] = None,
-                          model_name: Optional[str] = None):
-        """
-        Added `model_name` param so the UI can pass the selected LLM.
-        Falls back to self.default_model if not provided.
-        """
+                        context: Optional[Dict[str, Any]] = None,
+                        model_name: Optional[str] = None):
         chosen_model = model_name or self.default_model
-        client = self._make_client(chosen_model)
+        use_hf_local = (chosen_model == "aaditya/OpenBioLLM-Llama3-70B")
 
-
-
+        # Build chat history in OpenAI-style role format
         chat_history = []
         if history:
             for msg in history:
@@ -71,26 +74,51 @@ class ParkinsonsGaitChatbot:
                     if msg[1]:
                         chat_history.append({"role": "assistant", "content": msg[1]})
 
+        # Start with your system prompt
         messages = [{"role": "system", "content": self.PROMPT_TEMPLATE}]
 
-        # a multimodal system message with context + images
+        # (Optional) multimodal context → this model is text-only; we add textual context regardless
         if context and (context.get("text") or context.get("images")):
-            mm_content = []
+            mm_text = ""
             if context.get("text"):
-                # Prefix so the model knows this is context (not a question)
-                mm_content.append({"type": "text", "text": "CONTEXT FOR ANALYSIS:\n" + context["text"]})
-            if model_name == "gpt-4o" or model_name == "meta-llama/Llama-4-Scout-17B-16E-Instruct:fireworks-ai":
-                for uri in (context.get("images") or [])[:3]:
-                    mm_content.append({"type": "image_url", "image_url": {"url": uri}})
-                    mm_content.append({"type": "text", "text": "The first attached image is the raw data with GradCAM overlay, the second is with LRP overlay, and the third highlights regions (in red) where the two XAI methods disagree significantly, indicating areas of model uncertainty."})
-            messages.append({"role": "user", "content": mm_content})
+                mm_text += "CONTEXT FOR ANALYSIS:\n" + context["text"]
+            if mm_text:
+                messages.append({"role": "user", "content": mm_text})
 
         messages.extend(chat_history)
         messages.append({"role": "user", "content": new_message})
 
         start_ts = time.time()
 
+        # ------------------------- Branch: HF transformers (OpenBioLLM) -------------------------
+        if use_hf_local:
+            try:
+                # Generate in one shot; then yield once (keeps your Gradio flow)
+                completion = self._generate_with_hf(messages, self.temperature, self.max_tokens)
+                assistant_response = completion
+                updated_history = history + [[new_message, assistant_response]]
+                yield updated_history
+
+                elapsed = time.time() - start_ts
+                approx_output_tokens = self._estimate_tokens_from_text(assistant_response)
+                stats = (f"Elapsed time = {elapsed:.1f}s | Output token ≈ {approx_output_tokens} tok | ")
+                print(f"[Chatbot][HF] {stats}")
+
+            except Exception as e:
+                error_response = f"Error (HF transformers) generating response: {str(e)}"
+                updated_history = history + [[new_message, error_response]]
+                yield updated_history
+                elapsed = time.time() - start_ts
+                stats = f"Elapsed: {elapsed:.1f}s | Output≈0 tok"
+                print(f"[Chatbot][HF] {stats} | Error: {str(e)}")
+            return
+
+        # ------------------------- Default: OpenAI-compatible (your existing code) -------------------------
+        client = self._make_client(chosen_model)
         try:
+            """
+            Syntax for streaming chat completions:
+            
             response = client.chat.completions.create(
                 model=chosen_model,
                 messages=messages,
@@ -98,6 +126,30 @@ class ParkinsonsGaitChatbot:
                 max_tokens=self.max_tokens,
                 stream=True
             )
+            """
+
+            def _build_kwargs(model_name: str):
+                # Base kwargs common to all models
+                kwargs = {
+                    "model": model_name,
+                    "messages": messages,
+                    "stream": True,
+                }
+                # Param name for output tokens differs on some newer models
+                if str(model_name).startswith("gpt-5"):
+                    kwargs["max_completion_tokens"] = self.max_tokens
+                else:
+                    kwargs["max_tokens"] = self.max_tokens
+
+                # temperature: do NOT send for gpt-5 (only default=1 allowed)
+                if not str(model_name).startswith("gpt-5"):
+                    kwargs["temperature"] = self.temperature
+                # else: omit temperature entirely
+                return kwargs
+
+            create_kwargs = _build_kwargs(chosen_model)
+            response = client.chat.completions.create(**create_kwargs)
+
             assistant_response = ""
             for chunk in response:
                 if chunk.choices[0].delta.content is not None:
@@ -121,3 +173,57 @@ class ParkinsonsGaitChatbot:
             stats = f"Elapsed: {elapsed:.1f}s | Output≈0 tok"
             print(f"[Chatbot] {stats} | Error: {str(e)}")
 
+
+    _hf_pipe = None
+
+    def _get_hf_pipeline(self):
+        """
+        Lazily create and cache a HF transformers pipeline for OpenBioLLM.
+        """
+        if self._hf_pipe is not None:
+            return self._hf_pipe
+        if _hf_transformers is None or _hf_torch is None:
+            raise RuntimeError("transformers/torch not available. Please `pip install transformers torch`.")
+
+        model_id = "aaditya/OpenBioLLM-Llama3-70B"
+        self._hf_pipe = _hf_transformers.pipeline(
+            "text-generation",
+            model=model_id,
+            model_kwargs={"torch_dtype": _hf_torch.bfloat16},
+            device="auto",  # uses GPU if available
+        )
+        return self._hf_pipe
+
+    def _generate_with_hf(self, messages, temperature: float, max_new_tokens: int):
+        """
+        messages: list of {"role": "...", "content": "..."} including system/user/assistant.
+        Applies chat template and runs local generation. Returns str.
+        """
+        pipe = self._get_hf_pipeline()
+
+        # OpenBioLLM is Llama3-based; use the tokenizer’s chat template
+        prompt = pipe.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+
+        # prefer deterministic output unless you explicitly want sampling
+        do_sample = (temperature or 0.0) > 0.0
+
+        # EOS handling for Llama 3 style
+        terminators = [
+            pipe.tokenizer.eos_token_id,
+            pipe.tokenizer.convert_tokens_to_ids("<|eot_id|>")
+        ]
+
+        out = pipe(
+            prompt,
+            max_new_tokens=max_new_tokens,
+            eos_token_id=terminators,
+            do_sample=do_sample,
+            temperature=max(0.0, min(2.0, float(temperature))),
+            top_p=0.9
+        )
+        gen = out[0]["generated_text"][len(prompt):]
+        return gen.strip()

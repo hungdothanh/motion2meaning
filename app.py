@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import io, base64
 
 # Import your existing modules
-from config import PRETRAINED_MODEL_PATH, SEGMENT_LENGTH, CLASS_NAMES, css, js_func
+from config import PRETRAINED_MODEL_PATH, SEGMENT_LENGTH, CLASS_NAMES, css
 from data import load_data, preprocess_file, render_gait_parameter
 from model import ParkinsonsGaitCNN
 from discrepancy import XAIComparativeAnalyzer
@@ -17,13 +17,12 @@ from chatbox import ParkinsonsGaitChatbot
 
 import warnings
 
-# Suppress all FutureWarnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-# (optional) Suppress only the PyTorch hook warning instead of all:
-# warnings.filterwarnings("ignore", category=FutureWarning, message=".*non-full backward hook.*")
 
-
+#-------------------------------------------------------------------
+#-------------------Utility Classes and Functions-------------------
+#-------------------------------------------------------------------
 class ParkinsonsGaitApp:
     """Main application class for Parkinson's Gait Analysis"""
     
@@ -33,6 +32,7 @@ class ParkinsonsGaitApp:
         
         # Load model
         self.model = ParkinsonsGaitCNN(input_channels=1, sequence_length=SEGMENT_LENGTH)
+
         self.model.load_state_dict(torch.load(PRETRAINED_MODEL_PATH, map_location=self.device))
         self.model.to(self.device).eval()
         
@@ -605,13 +605,18 @@ def create_gradio_interface():
             with gr.Group():
                 gr.HTML("<h2>📊 Patient Data Selection</h2>")
                 with gr.Row():
-                    with gr.Column():
+                    with gr.Column(scale=1):
                         patient_selector = gr.Dropdown(
                             choices=app.patient_names,
                             label="Select Patient:",
                             value=app.patient_names[0] if app.patient_names else None
                         )
-                    with gr.Column():
+                    with gr.Column(scale=1):
+                        sensor_dropdown = gr.Dropdown(
+                            choices=[f"Left VGRF-{i}" for i in range(1,9)] + [f"Right VGRF-{i}" for i in range(1,9)] + ["Left Foot Total", "Right Foot Total"], 
+                            label="Select Sensor", interactive=True
+                        )
+                    with gr.Column(scale=2):
                         segment_selector = gr.Slider(
                             minimum=0, maximum=0, step=1, value=0,
                             label="Select Segment",
@@ -715,9 +720,11 @@ def create_gradio_interface():
                                 "meta-llama/Llama-3.3-70B-Instruct:fireworks-ai",
                                 "openai/gpt-oss-20b:fireworks-ai",
                                 "meta-llama/Llama-4-Scout-17B-16E-Instruct:fireworks-ai",
-                                "gpt-4o"
+                                "aaditya/OpenBioLLM-Llama3-70B",
+                                "gpt-4o",
+                                "gpt-5"
                             ],
-                            value="meta-llama/Llama-3.3-70B-Instruct:fireworks-ai",
+                            value="meta-llama/Llama-4-Scout-17B-16E-Instruct:fireworks-ai",
                             label="Select a LLM"
                         )
                     with gr.Column(scale=5):
@@ -832,6 +839,7 @@ def create_gradio_interface():
         )
 
     return demo
+
 
 
 def main():    

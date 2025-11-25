@@ -38,7 +38,7 @@ def preprocess_file(file_path, sequence_length=1000):
 
 # Load patients data from YAML
 def load_data():
-    with open("data.yaml") as f:
+    with open("dataset/data.yaml") as f:
         return yaml.safe_load(f)
 
 

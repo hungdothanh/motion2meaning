@@ -26,11 +26,12 @@ class XAIComparativeAnalyzer:
 
         # IMPORTANT: 1 input channel and your trained sequence length
         self.model = ParkinsonsGaitCNN(input_channels=1, sequence_length=SEGMENT_LENGTH)
+
         self.model.load_state_dict(torch.load(model_path, map_location=self.device))
         self.model.to(self.device).eval()
 
         # XAI instances
-        self.gradcam = GradCAM1D(self.model, target_layers=["conv4"])
+        self.gradcam = GradCAM1D(self.model, target_layers=["conv4"]) 
         self.lrp_model = LRPModel(self.model).to(self.device).eval()
 
         # Simple blue→red colormap
@@ -60,11 +61,6 @@ class XAIComparativeAnalyzer:
         
         # Load raw data file
         raw_data = pd.read_csv(data['gait_file'], sep='\t', header=None)
-
-        # raw = pd.read_csv(gait_txt_path, sep='\t', header=None)
-
-        # if raw.shape[1] < 18:
-        #     raise ValueError(f"{gait_txt_path} has {raw.shape[1]} columns; need >= 18 to access column 18.")
 
         # Select only Column 18 (0-based index 17) -> (T, 1)
         col18 = raw_data.iloc[:, [17]].to_numpy()

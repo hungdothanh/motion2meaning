@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 
+
 class ParkinsonsGaitCNN(nn.Module):
     """CNN model for Parkinson's gait analysis matching the provided architecture"""
     
