@@ -10,6 +10,10 @@ except Exception:
     _hf_transformers = None
     _hf_torch = None
 
+    
+OPENAI_API_KEY = "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"          # your OpenAI / GPT-style key
+HF_API_TOKEN   = "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"          # your Hugging Face access token
+
 class ParkinsonsGaitChatbot:
 
     PROMPT_TEMPLATE = """You are a helpful clinical decision support AI for Parkinson's disease diagnosis using gait analysis. Always:
@@ -37,10 +41,10 @@ class ParkinsonsGaitChatbot:
         """
         if model_name == "gpt-4o" or model_name == "gpt-5":
             # OpenAI hosted models (default: base_url=https://api.openai.com/v1)
-            return OpenAI(api_key="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")  
+            return OpenAI(api_key=OPENAI_API_KEY)  
         else:
             # HF Router for 3rd-party hosted models like Fireworks
-            return OpenAI(base_url="https://router.huggingface.co/v1", api_key="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")
+            return OpenAI(base_url="https://router.huggingface.co/v1", api_key=HF_API_TOKEN)
 
 
     @staticmethod
