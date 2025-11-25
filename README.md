@@ -64,12 +64,11 @@ It integrates **wearable sensor analysis, explainable AI (XAI), and contestable 
    ```
 
 3. Configure LLM API keys (required for the Contestable LLM interface):
-Open [`chatbox.py`](https://github.com/hungdothanh/motion2meaning/blob/main/chatbox.py) and add your own keys/endpoints for GPT and your Hugging Face deployment.
-```
-
-OPENAI_API_KEY = "sk-..."          # your OpenAI / GPT-style key
-HF_API_TOKEN   = "hf_..."          # your Hugging Face access token
-```
+  Open [`chatbox.py`](https://github.com/hungdothanh/motion2meaning/blob/main/chatbox.py) and add your own keys/endpoints for GPT and your Hugging Face deployment.
+    ```
+    OPENAI_API_KEY = "sk-..."          # your OpenAI / GPT-style key
+    HF_API_TOKEN   = "hf_..."          # your Hugging Face access token
+    ```
 
 4. Run the web-based dashboard:
    ```
